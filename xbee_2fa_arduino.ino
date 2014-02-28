@@ -52,11 +52,14 @@ uint8_t aesdata[] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5}; //16 chars == 16 bytes
 uint8_t aesdata2[] = {0x5E, 0x8C, 0x5D, 0x61, 0x3C, 0xF5, 0x00, 0x99, 0x5F, 0xB6, 0xB0, 0x3E, 0x0A, 0x8B, 0x26, 0x6D};
 
 // Received packet format:
-// Nonce: 2 byte
-// IMEI: 4 bytes
+// Nonce: 2 bytes
+// IMEI: 8 bytes
 // Node ID: 2 bytes
 // Timestamp: 4 bytes
 uint8_t androidReqRes[16];
+
+uint8_t androidResponse[16];
+
 
 // 5E 8C 5D 61 3C F5 00 99 5F B6 B0 3E 0A 8B 26 6D
 // 0x5E 0x8C 0x5D 0x61 0x3C 0xF5 0x00 0x99 0x5F 0xB6 0xB0 0x3E 0x0A 0x8B 0x26 0x6D
@@ -64,7 +67,7 @@ uint8_t androidReqRes[16];
 // 16-bit addressing: Enter address of remote XBee, typically the coordinator
 Tx16Request tx = Tx16Request(0xFFFF, payload, sizeof(payload));
 Tx16Request txaes = Tx16Request(0xFFFF, aesdata2, sizeof(aesdata2));
-Tx16Request txAndroidResponse = Tx16Request(0xFFFF, androidReqRes, sizeof(androidReqRes));
+Tx16Request txAndroidResponse = Tx16Request(0xFFFF, androidResponse, sizeof(androidResponse));
 TxStatusResponse txStatus = TxStatusResponse();
 
 Tx16Request tx2 = Tx16Request(0xFFFF, payload2, sizeof(payload2));
@@ -105,6 +108,11 @@ void setup() {
 		androidReqRes[i] = 0;
 	}
 
+	// Populate androidResponse with 0s
+	for (uint8_t i = 0; i < 15; i++) {
+		androidResponse[i] = 0;
+	}
+
 	// Flash twice; setup is complete
 	flashLed(notificationLed, 2, 50);
 }
@@ -113,9 +121,9 @@ void setup() {
 void loop() {
 
 	// send TX with data
-	payload[0] = 0x09; // REMOTE_ARDUINO_DATA
-	payload[1] = 0x01; // LED_ON_OFF
-	payload[2] = data; // data (LED state, in this case)
+	// payload[0] = 0x09; // REMOTE_ARDUINO_DATA
+	// payload[1] = 0x01; // LED_ON_OFF
+	// payload[2] = data; // data (LED state, in this case)
 	// xbee.send(txaes);
 
 	// aes128_enc_single(key, aesdata);
@@ -174,6 +182,18 @@ void loop() {
 
 			// Decrypt the received data
 			aes128_dec_single(key, androidReqRes);
+
+			androidResponse[0] = 0x00; // Node ID
+			androidResponse[1] = 0x01; // Node ID
+
+			for (uint8_t i = 0; i < 8; i++) {
+				androidResponse[i + 2] = androidReqRes[i + 2]; // IMEI
+			}
+
+			randNumber = random(255);
+			uint8_t nonceFio = uint8_t(randNumber);
+
+			androidResponse[10] = nonceFio;
 
 			// Re-transmit the data (temporarily)
 			xbee.send(txAndroidResponse);
