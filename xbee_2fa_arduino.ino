@@ -63,174 +63,172 @@ Tx16Request tx2 = Tx16Request(0xFFFF, payload2, sizeof(payload2));
 TxStatusResponse txStatus2 = TxStatusResponse();
 
 void flashLed(int pin, int times, int wait) {
-  for (int i = 0; i < times; i++) {
-    digitalWrite(pin, HIGH);
-    delay(wait);
-    digitalWrite(pin, LOW);
+	for (int i = 0; i < times; i++) {
+		digitalWrite(pin, HIGH);
+		delay(wait);
+		digitalWrite(pin, LOW);
 
-    if (i + 1 < times) {
-      delay(wait);
-    }
-  }
+		if (i + 1 < times) {
+			delay(wait);
+		}
+	}
 }
 
 void setup() {
-  pinMode(notificationLed, OUTPUT);
-  pinMode(statusLed, OUTPUT);
-  pinMode(errorLed, OUTPUT);
-  pinMode(dataLed,  OUTPUT);
+	pinMode(notificationLed, OUTPUT);
+	pinMode(statusLed, OUTPUT);
+	pinMode(errorLed, OUTPUT);
+	pinMode(dataLed,  OUTPUT);
 
-  // start serial
-  Serial.begin(57600);
-  xbee.setSerial(Serial);
+	// start serial
+	Serial.begin(57600);
+	xbee.setSerial(Serial);
 
-  aes128_dec_single(key, aesdata2);
+	aes128_dec_single(key, aesdata2);
 
-  // if analog input pin 0 is unconnected, random analog
-  // noise will cause the call to randomSeed() to generate
-  // different seed numbers each time the sketch runs.
-  // randomSeed() will then shuffle the random function.
-  randomSeed(analogRead(0));
+	// if analog input pin 0 is unconnected, random analog
+	// noise will cause the call to randomSeed() to generate
+	// different seed numbers each time the sketch runs.
+	// randomSeed() will then shuffle the random function.
+	randomSeed(analogRead(0));
 
-  // Flash twice; setup is complete
-  flashLed(notificationLed, 2, 50);
+	// Flash twice; setup is complete
+	flashLed(notificationLed, 2, 50);
 }
 
 // continuously reads packets, looking for RX16 or RX64
 void loop() {
 
-  // send TX with data
-  payload[0] = 0x09; // REMOTE_ARDUINO_DATA
-  payload[1] = 0x01; // LED_ON_OFF
-  payload[2] = data; // data (LED state, in this case)
-  // xbee.send(txaes);
+	// send TX with data
+	payload[0] = 0x09; // REMOTE_ARDUINO_DATA
+	payload[1] = 0x01; // LED_ON_OFF
+	payload[2] = data; // data (LED state, in this case)
+	// xbee.send(txaes);
 
-  aes128_enc_single(key, aesdata);
+	aes128_enc_single(key, aesdata);
 
-  // flash TX indicator
-  // flashLed(statusLed, 1, 100);
+	// flash TX indicator
+	// flashLed(statusLed, 1, 100);
 
-  // after sending a tx request, we expect a status response
-  // wait up to 5 seconds for the status response
-  // if (xbee.readPacket(5000)) {
-  //   // got a response!
+	// after sending a tx request, we expect a status response
+	// wait up to 5 seconds for the status response
+	// if (xbee.readPacket(5000)) {
+	//   // got a response!
 
-  //   // should be a znet tx status
-  //   if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
-  //     xbee.getResponse().getZBTxStatusResponse(txStatus);
+	//   // should be a znet tx status
+	//   if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
+	//     xbee.getResponse().getZBTxStatusResponse(txStatus);
 
-  //     // get the delivery status, the fifth byte
-  //     if (txStatus.getStatus() == SUCCESS) {
-  //       // success.  time to celebrate
-  //       flashLed(statusLed, 5, 50);
-  //     }
-  //     else {
-  //       // the remote XBee did not receive our packet. is it powered on?
-  //       flashLed(errorLed, 3, 500);
-  //     }
-  //   }
-  // }
-  // else if (xbee.getResponse().isError()) {
-  //   //nss.print("Error reading packet.  Error code: ");
-  //   //nss.println(xbee.getResponse().getErrorCode());
-  //   // or flash error led
-  // }
-  // else {
-  //   // local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
-  //   flashLed(errorLed, 2, 50);
-  // }
+	//     // get the delivery status, the fifth byte
+	//     if (txStatus.getStatus() == SUCCESS) {
+	//       // success.  time to celebrate
+	//       flashLed(statusLed, 5, 50);
+	//     }
+	//     else {
+	//       // the remote XBee did not receive our packet. is it powered on?
+	//       flashLed(errorLed, 3, 500);
+	//     }
+	//   }
+	// }
+	// else if (xbee.getResponse().isError()) {
+	//   //nss.print("Error reading packet.  Error code: ");
+	//   //nss.println(xbee.getResponse().getErrorCode());
+	//   // or flash error led
+	// }
+	// else {
+	//   // local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
+	//   flashLed(errorLed, 2, 50);
+	// }
 
-  // delay(1000);
+	// delay(1000);
 
-  // receive RX
-  xbee.readPacket();
+	// receive RX
+	xbee.readPacket();
 
-  if (xbee.getResponse().isAvailable()) {
-    // got something
+	if (xbee.getResponse().isAvailable()) {
+		// got something
 
-    if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
-      // got a rx packet
+		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+			// got a rx packet
 
-      // if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
-        xbee.getResponse().getRx16Response(rx16);
-        option = rx16.getOption();
-        data = rx16.getData(0);
-        dataLong[0] = rx16.getData(0);
-        dataLong[1] = rx16.getData(1);
-        dataLong[2] = rx16.getData(2);
-        dataLong[3] = rx16.getData(3);
+			// if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+				xbee.getResponse().getRx16Response(rx16);
+				option = rx16.getOption();
+				data = rx16.getData(0);
+				dataLong[0] = rx16.getData(0);
+				dataLong[1] = rx16.getData(1);
+				dataLong[2] = rx16.getData(2);
+				dataLong[3] = rx16.getData(3);
 
-        payload2[0] = dataLong[3];
-        payload2[1] = dataLong[2];
-        payload2[2] = dataLong[1];
-        payload2[3] = dataLong[0];
+				payload2[0] = dataLong[3];
+				payload2[1] = dataLong[2];
+				payload2[2] = dataLong[1];
+				payload2[3] = dataLong[0];
 
 
-        // send TX with data
+				// send TX with data
 //        payload[0] = 0x09; // REMOTE_ARDUINO_DATA
 //        payload[1] = 0x01; // LED_ON_OFF
 //        payload[2] = data; // data (LED state, in this case)
-        xbee.send(tx2);
+				xbee.send(tx2);
 
-        // flash TX indicator
-        flashLed(statusLed, 1, 100);
+				// flash TX indicator
+				flashLed(statusLed, 1, 100);
 
-        // after sending a tx request, we expect a status response
-        // wait up to 5 seconds for the status response
-        if (xbee.readPacket(5000)) {
-          // got a response!
+				// after sending a tx request, we expect a status response
+				// wait up to 5 seconds for the status response
+				if (xbee.readPacket(5000)) {
+					// got a response!
 
-          // should be a znet tx status
-          if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
-            xbee.getResponse().getZBTxStatusResponse(txStatus2);
+					// should be a znet tx status
+					if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
+						xbee.getResponse().getZBTxStatusResponse(txStatus2);
 
-            // get the delivery status, the fifth byte
-            if (txStatus2.getStatus() == SUCCESS) {
-              // success.  time to celebrate
-              flashLed(statusLed, 5, 50);
-            }
-            else {
-              // the remote XBee did not receive our packet. is it powered on?
-              flashLed(errorLed, 3, 500);
-            }
-          }
-        }
-        else if (xbee.getResponse().isError()) {
-          //nss.print("Error reading packet.  Error code: ");
-          //nss.println(xbee.getResponse().getErrorCode());
-          // or flash error led
-          flashLed(errorLed, 5, 500);
-        }
-        else {
-          // local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
-          flashLed(errorLed, 2, 50);
-        }
+						// get the delivery status, the fifth byte
+						if (txStatus2.getStatus() == SUCCESS) {
+							// success.  time to celebrate
+							flashLed(statusLed, 5, 50);
+						}
+						else {
+							// the remote XBee did not receive our packet. is it powered on?
+							flashLed(errorLed, 3, 500);
+						}
+					}
+				}
+				else if (xbee.getResponse().isError()) {
+					//nss.print("Error reading packet.  Error code: ");
+					//nss.println(xbee.getResponse().getErrorCode());
+					// or flash error led
+					flashLed(errorLed, 5, 500);
+				}
+				else {
+					// local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
+					flashLed(errorLed, 2, 50);
+				}
 
-        delay(1000);
-      // }
-      // else {
-      //   xbee.getResponse().getRx64Response(rx64);
-      //   option = rx64.getOption();
-      //   data = rx64.getData(0);
-      // }
+				delay(1000);
+			// }
+			// else {
+			//   xbee.getResponse().getRx64Response(rx64);
+			//   option = rx64.getOption();
+			//   data = rx64.getData(0);
+			// }
 
-      // TODO check option, rssi bytes
-      flashLed(statusLed, 1, 10);
+			// TODO check option, rssi bytes
+			flashLed(statusLed, 1, 10);
 
-      // set dataLed PWM to value of the first byte in the data
-      analogWrite(dataLed, data);
-    }
-    else {
-      // not something we were expecting
-      flashLed(errorLed, 2, 25);
-    }
-  }
-  else if (xbee.getResponse().isError()) {
-    //nss.print("Error reading packet.  Error code: ");
-    //nss.println(xbee.getResponse().getErrorCode());
-    // or flash error led
-    flashLed(errorLed, 5, 25);
-  }
+			// set dataLed PWM to value of the first byte in the data
+			analogWrite(dataLed, data);
+		}
+		else {
+			// not something we were expecting
+			flashLed(errorLed, 2, 25);
+		}
+	}
+	else if (xbee.getResponse().isError()) {
+		//nss.print("Error reading packet.  Error code: ");
+		//nss.println(xbee.getResponse().getErrorCode());
+		// or flash error led
+		flashLed(errorLed, 5, 25);
+	}
 }
-
-
