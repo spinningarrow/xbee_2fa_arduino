@@ -41,16 +41,16 @@ unsigned long timeMillis;
 uint8_t option = 0;
 uint8_t data = 0;
 
-uint8_t dataLong[] = {0, 0, 0, 0};
-uint8_t payload2[] = { 0, 0, 0, 0 };
+// uint8_t dataLong[] = {0, 0, 0, 0};
+// uint8_t payload2[] = { 0, 0, 0, 0 };
 
 // allocate two bytes for to hold a 10-bit analog reading
-uint8_t payload[] = { 0, 0, 0 };
+// uint8_t payload[] = { 0, 0, 0 };
 
-uint8_t key[] = {0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7};
-uint8_t aesdata[] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5}; //16 chars == 16 bytes
+uint8_t key[] = {0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7};
+// uint8_t aesdata[] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5}; //16 chars == 16 bytes
 
-uint8_t aesdata2[] = {0x5E, 0x8C, 0x5D, 0x61, 0x3C, 0xF5, 0x00, 0x99, 0x5F, 0xB6, 0xB0, 0x3E, 0x0A, 0x8B, 0x26, 0x6D};
+// uint8_t aesdata2[] = {0x5E, 0x8C, 0x5D, 0x61, 0x3C, 0xF5, 0x00, 0x99, 0x5F, 0xB6, 0xB0, 0x3E, 0x0A, 0x8B, 0x26, 0x6D};
 
 // Received packet format:
 // Nonce: 2 bytes
@@ -66,12 +66,12 @@ uint8_t androidResponse[32];
 // 0x5E 0x8C 0x5D 0x61 0x3C 0xF5 0x00 0x99 0x5F 0xB6 0xB0 0x3E 0x0A 0x8B 0x26 0x6D
 
 // 16-bit addressing: Enter address of remote XBee, typically the coordinator
-Tx16Request tx = Tx16Request(0xFFFF, payload, sizeof(payload));
-Tx16Request txaes = Tx16Request(0xFFFF, aesdata2, sizeof(aesdata2));
+// Tx16Request tx = Tx16Request(0xFFFF, payload, sizeof(payload));
+// Tx16Request txaes = Tx16Request(0xFFFF, aesdata2, sizeof(aesdata2));
 Tx16Request txAndroidResponse = Tx16Request(0xFFFF, androidResponse, sizeof(androidResponse));
 TxStatusResponse txStatus = TxStatusResponse();
 
-Tx16Request tx2 = Tx16Request(0xFFFF, payload2, sizeof(payload2));
+// Tx16Request tx2 = Tx16Request(0xFFFF, payload2, sizeof(payload2));
 TxStatusResponse txStatus2 = TxStatusResponse();
 
 void flashLed(int pin, int times, int wait) {
@@ -182,7 +182,7 @@ void loop() {
 			}
 
 			// Decrypt the received data
-			aes128_dec_single(key, androidRequest);
+			aes256_dec_single(key, androidRequest);
 
 			// Node ID
 			androidResponse[0] = 0x00;
