@@ -36,6 +36,7 @@ int statusLed = 11;
 int errorLed = 12;
 int dataLed = 13;
 long randNumber;
+unsigned long timeMillis;
 
 uint8_t option = 0;
 uint8_t data = 0;
@@ -56,9 +57,9 @@ uint8_t aesdata2[] = {0x5E, 0x8C, 0x5D, 0x61, 0x3C, 0xF5, 0x00, 0x99, 0x5F, 0xB6
 // IMEI: 8 bytes
 // Node ID: 2 bytes
 // Timestamp: 4 bytes
-uint8_t androidReqRes[16];
+uint8_t androidRequest[32];
 
-uint8_t androidResponse[16];
+uint8_t androidResponse[32];
 
 
 // 5E 8C 5D 61 3C F5 00 99 5F B6 B0 3E 0A 8B 26 6D
@@ -103,13 +104,13 @@ void setup() {
 	// randomSeed() will then shuffle the random function.
 	randomSeed(analogRead(0));
 
-	// Populate androidReqRes with 0s
-	for (uint8_t i = 0; i < 15; i++) {
-		androidReqRes[i] = 0;
+	// Populate androidRequest with 0s
+	for (uint8_t i = 0; i < sizeof(androidRequest); i++) {
+		androidRequest[i] = 0;
 	}
 
 	// Populate androidResponse with 0s
-	for (uint8_t i = 0; i < 15; i++) {
+	for (uint8_t i = 0; i < sizeof(androidResponse); i++) {
 		androidResponse[i] = 0;
 	}
 
@@ -177,25 +178,40 @@ void loop() {
 			uint8_t dataLength = rx16.getDataLength();
 
 			for (uint8_t i = 0; i < dataLength; i++) {
-				androidReqRes[i] = rx16.getData(i);
+				androidRequest[i] = rx16.getData(i);
 			}
 
 			// Decrypt the received data
-			aes128_dec_single(key, androidReqRes);
+			aes128_dec_single(key, androidRequest);
 
-			androidResponse[0] = 0x00; // Node ID
-			androidResponse[1] = 0x01; // Node ID
+			// Node ID
+			androidResponse[0] = 0x00;
+			androidResponse[1] = 0x01;
 
-			for (uint8_t i = 0; i < 8; i++) {
-				androidResponse[i + 2] = androidReqRes[i + 2]; // IMEI
+			// IMEI
+			for (uint8_t i = 2; i < 10; i++) {
+				androidResponse[i] = androidRequest[i];
 			}
 
+			// Nonce (Fio)
 			randNumber = random(255);
 			uint8_t nonceFio = uint8_t(randNumber);
 
-			androidResponse[10] = nonceFio;
+			androidResponse[10] = 0x00;
+			androidResponse[11] = nonceFio;
 
-			// Re-transmit the data (temporarily)
+			// Nonce (Received)
+			androidResponse[12] = androidRequest[0];
+			androidResponse[13] = androidRequest[1];
+
+			// Timestamp
+			timeMillis = millis();
+			androidResponse[14] = timeMillis >> 24;
+			androidResponse[15] = timeMillis >> 16;
+			androidResponse[16] = timeMillis >> 8;
+			androidResponse[17] = timeMillis;
+
+			// Transmit the response data
 			xbee.send(txAndroidResponse);
 
 			// flash TX indicator
