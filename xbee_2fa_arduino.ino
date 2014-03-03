@@ -121,49 +121,6 @@ void setup() {
 // continuously reads packets, looking for RX16 or RX64
 void loop() {
 
-	// send TX with data
-	// payload[0] = 0x09; // REMOTE_ARDUINO_DATA
-	// payload[1] = 0x01; // LED_ON_OFF
-	// payload[2] = data; // data (LED state, in this case)
-	// xbee.send(txaes);
-
-	// aes128_enc_single(key, aesdata);
-
-	// flash TX indicator
-	// flashLed(statusLed, 1, 100);
-
-	// after sending a tx request, we expect a status response
-	// wait up to 5 seconds for the status response
-	// if (xbee.readPacket(5000)) {
-	//   // got a response!
-
-	//   // should be a znet tx status
-	//   if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
-	//     xbee.getResponse().getZBTxStatusResponse(txStatus);
-
-	//     // get the delivery status, the fifth byte
-	//     if (txStatus.getStatus() == SUCCESS) {
-	//       // success.  time to celebrate
-	//       flashLed(statusLed, 5, 50);
-	//     }
-	//     else {
-	//       // the remote XBee did not receive our packet. is it powered on?
-	//       flashLed(errorLed, 3, 500);
-	//     }
-	//   }
-	// }
-	// else if (xbee.getResponse().isError()) {
-	//   //nss.print("Error reading packet.  Error code: ");
-	//   //nss.println(xbee.getResponse().getErrorCode());
-	//   // or flash error led
-	// }
-	// else {
-	//   // local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
-	//   flashLed(errorLed, 2, 50);
-	// }
-
-	// delay(1000);
-
 	// receive RX
 	// encrypted packet
 	xbee.readPacket();
@@ -188,7 +145,7 @@ void loop() {
 			androidResponse[0] = 0x00;
 			androidResponse[1] = 0x01;
 
-			// IMEI
+			// Device ID (e.g., IMEI)
 			for (uint8_t i = 2; i < 10; i++) {
 				androidResponse[i] = androidRequest[i];
 			}
@@ -230,6 +187,84 @@ void loop() {
 					if (txStatus2.getStatus() == SUCCESS) {
 						// success.  time to celebrate
 						flashLed(statusLed, 5, 50);
+
+						// Now wait for server to send the 2FA token
+						xbee.readPacket(5000);
+
+						if (xbee.getResponse().isAvailable()) {
+							// got something, hopefully a token
+							if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+								// got a rx packet
+								xbee.getResponse().getRx16Response(rx16);
+								uint8_t dataLength = rx16.getDataLength();
+
+								uint8_t token0 = rx16.getData(0);
+								uint8_t token1 = rx16.getData(1);
+
+								// if (msb == 0x00 && lsb == 0xFF) {
+								// Received 2FA token, ready to receive from Android
+								flashLed(statusLed, 5, 25);
+								flashLed(errorLed, 5, 25);
+								// }
+
+								// Now wait for Android to send data
+								xbee.readPacket(30000);
+
+								if (xbee.getResponse().isAvailable()) {
+									// got something, hopefully the Android response
+									if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+										// got a rx packet
+										xbee.getResponse().getRx16Response(rx16);
+										uint8_t dataLength = rx16.getDataLength();
+
+										for (uint8_t i = 0; i < dataLength; i++) {
+											androidRequest[i] = rx16.getData(i);
+										}
+
+										// Decrypt the received data
+										aes256_dec_single(key, androidRequest);
+
+										if (token0 == androidRequest[0] && token1 == androidRequest[1]) {
+											flashLed(statusLed, 20, 25);
+											flashLed(errorLed, 20, 25);
+
+											digitalWrite(dataLed, HIGH);
+
+											delay(5000);
+
+											digitalWrite(dataLed, LOW);
+										}
+
+										else {
+											flashLed(statusLed, 2, 25);
+											flashLed(errorLed, 2, 25);
+										}
+
+										// if (msb == 0x00 && lsb == 0xFF) {
+									}
+									else {
+										// not something we were expecting
+										flashLed(errorLed, 2, 25);
+									}
+								}
+								else if (xbee.getResponse().isError()) {
+									//nss.print("Error reading packet.  Error code: ");
+									//nss.println(xbee.getResponse().getErrorCode());
+									// or flash error led
+									flashLed(errorLed, 5, 25);
+								}
+							}
+							else {
+								// not something we were expecting
+								flashLed(errorLed, 2, 25);
+							}
+						}
+						else if (xbee.getResponse().isError()) {
+							//nss.print("Error reading packet.  Error code: ");
+							//nss.println(xbee.getResponse().getErrorCode());
+							// or flash error led
+							flashLed(errorLed, 5, 25);
+						}
 					}
 					else {
 						// the remote XBee did not receive our packet. is it powered on?
@@ -254,7 +289,7 @@ void loop() {
 			flashLed(statusLed, 1, 10);
 
 			// set dataLed PWM to value of the first byte in the data
-			analogWrite(dataLed, data);
+			// analogWrite(dataLed, data);
 		}
 		else {
 			// not something we were expecting
