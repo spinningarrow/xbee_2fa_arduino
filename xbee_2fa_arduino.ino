@@ -168,6 +168,12 @@ void loop() {
 			androidResponse[16] = timeMillis >> 8;
 			androidResponse[17] = timeMillis;
 
+			// for (uint8_t i = 18; i < sizeof(androidResponse); i++) {
+			// 	androidResponse[i] = androidRequest[i];
+			// }
+
+			// aes256_enc_single(key, androidResponse);
+
 			// Transmit the response data
 			xbee.send(txAndroidResponse);
 
@@ -212,6 +218,12 @@ void loop() {
 
 								if (xbee.getResponse().isAvailable()) {
 									// got something, hopefully the Android response
+									// Token (2)
+									// Device ID (8)
+									// NodeId (2)
+									// Nonce(android) (2)
+									// Nonce(node) (2)
+									// Timestamp (4)
 									if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
 										// got a rx packet
 										xbee.getResponse().getRx16Response(rx16);
@@ -224,6 +236,13 @@ void loop() {
 										// Decrypt the received data
 										aes256_dec_single(key, androidRequest);
 
+										// Check Node ID
+
+										// Check Device ID
+
+										// Check Nonces
+
+										// Check token
 										if (token0 == androidRequest[0] && token1 == androidRequest[1]) {
 											flashLed(statusLed, 20, 25);
 											flashLed(errorLed, 20, 25);
