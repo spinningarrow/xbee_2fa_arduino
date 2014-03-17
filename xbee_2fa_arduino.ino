@@ -115,6 +115,7 @@ void setup() {
 
 	// Flash twice; setup is complete
 	flashLed(notificationLed, 2, 50);
+	Serial.println("Setup complete.");
 }
 
 // continuously reads packets, looking for RX16 or RX64
@@ -129,6 +130,8 @@ void loop() {
 
 		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
 			// got a rx packet
+			Serial.println("Received 2FA request from mobile device.");
+			// TODO echo data in a structured manner
 
 			xbee.getResponse().getRx16Response(rx16);
 			uint8_t dataLength = rx16.getDataLength();
@@ -175,6 +178,7 @@ void loop() {
 
 			// Transmit the response data
 			xbee.send(txAndroidResponse);
+			Serial.println("Sending reply to mobile device...");
 
 			// flash TX indicator
 			flashLed(statusLed, 1, 100);
@@ -192,14 +196,18 @@ void loop() {
 					if (txStatus2.getStatus() == SUCCESS) {
 						// success.  time to celebrate
 						flashLed(statusLed, 5, 50);
+						Serial.println("...sent.");
 
 						// Now wait for server to send the 2FA token
+						Serial.println("Waiting for server to send 2FA token...");
 						xbee.readPacket(5000);
 
 						if (xbee.getResponse().isAvailable()) {
 							// got something, hopefully a token
 							if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
 								// got a rx packet
+								Serial.println("Token received from server.");
+
 								xbee.getResponse().getRx16Response(rx16);
 								uint8_t dataLength = rx16.getDataLength();
 
@@ -210,6 +218,7 @@ void loop() {
 								// Received 2FA token, ready to receive from Android
 								flashLed(statusLed, 5, 25);
 								flashLed(errorLed, 5, 25);
+								Serial.println("Waiting for mobile device to send token request...");
 								// }
 
 								// Now wait for Android to send data
@@ -224,6 +233,8 @@ void loop() {
 									// Nonce(node) (2)
 									// Timestamp (4)
 									if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+										Serial.println("...received.");
+
 										// got a rx packet
 										xbee.getResponse().getRx16Response(rx16);
 										uint8_t dataLength = rx16.getDataLength();
@@ -251,11 +262,15 @@ void loop() {
 											delay(5000);
 
 											digitalWrite(dataLed, LOW);
+
+											Serial.println("Success! Token is correct.");
 										}
 
 										else {
 											flashLed(statusLed, 2, 25);
 											flashLed(errorLed, 2, 25);
+
+											Serial.println("Error: Incorrect correct.");
 										}
 
 										// if (msb == 0x00 && lsb == 0xFF) {
@@ -263,6 +278,7 @@ void loop() {
 									else {
 										// not something we were expecting
 										flashLed(errorLed, 2, 25);
+										Serial.println("Error: Not an RX_16_RESPONSE");
 									}
 								}
 								else if (xbee.getResponse().isError()) {
@@ -270,11 +286,13 @@ void loop() {
 									//nss.println(xbee.getResponse().getErrorCode());
 									// or flash error led
 									flashLed(errorLed, 5, 25);
+									Serial.println("Error reading packet.");
 								}
 							}
 							else {
 								// not something we were expecting
 								flashLed(errorLed, 2, 25);
+								Serial.println("An unexpected error occurred.");
 							}
 						}
 						else if (xbee.getResponse().isError()) {
@@ -282,11 +300,17 @@ void loop() {
 							//nss.println(xbee.getResponse().getErrorCode());
 							// or flash error led
 							flashLed(errorLed, 5, 25);
+							Serial.println("Error reading packet.");
+						}
+						else {
+							Serial.println("Server didn't send anything within the time frame.");
+							Serial.println("Starting over from the beginning.");
 						}
 					}
 					else {
 						// the remote XBee did not receive our packet. is it powered on?
 						flashLed(errorLed, 3, 500);
+						Serial.println("Remote XBee did not receive our packet. Is it powered on?");
 					}
 				}
 			}
@@ -295,10 +319,12 @@ void loop() {
 				//nss.println(xbee.getResponse().getErrorCode());
 				// or flash error led
 				flashLed(errorLed, 5, 500);
+				Serial.println("Error reading packet.");
 			}
 			else {
 				// local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
 				flashLed(errorLed, 2, 50);
+				Serial.println("Error. Radio is not configured properly or not connected.");
 			}
 
 			delay(1000);
@@ -312,6 +338,7 @@ void loop() {
 		else {
 			// not something we were expecting
 			flashLed(errorLed, 2, 25);
+			Serial.println("Error. Got something instead of an RX16 response.");
 		}
 	}
 	else if (xbee.getResponse().isError()) {
@@ -319,5 +346,6 @@ void loop() {
 		//nss.println(xbee.getResponse().getErrorCode());
 		// or flash error led
 		flashLed(errorLed, 5, 25);
+		Serial.println("Error reading packet.");
 	}
 }
