@@ -206,13 +206,16 @@ void loop() {
 							// got something, hopefully a token
 							if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
 								// got a rx packet
-								Serial.println("Token received from server.");
+								Serial.print("Token received from server: ");
 
 								xbee.getResponse().getRx16Response(rx16);
 								uint8_t dataLength = rx16.getDataLength();
 
 								uint8_t token0 = rx16.getData(0);
 								uint8_t token1 = rx16.getData(1);
+
+								Serial.print(token0);
+								Serial.println(token1);
 
 								// if (msb == 0x00 && lsb == 0xFF) {
 								// Received 2FA token, ready to receive from Android
@@ -287,6 +290,9 @@ void loop() {
 									// or flash error led
 									flashLed(errorLed, 5, 25);
 									Serial.println("Error reading packet.");
+								}
+								else {
+									Serial.println("An unexpected error occurred.");
 								}
 							}
 							else {
