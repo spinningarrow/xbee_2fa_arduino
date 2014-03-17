@@ -85,6 +85,111 @@ void flashLed(int pin, int times, int wait) {
 	}
 }
 
+void printAuthRequestPacket() {
+	Serial.print("* Nonce: ");
+	Serial.print(androidRequest[0], HEX);
+	Serial.println(androidRequest[1], HEX);
+
+	Serial.print("* Device ID: ");
+	for (uint8_t i = 2; i < 10; i++) {
+		Serial.print(androidRequest[i], HEX);
+	}
+	Serial.println();
+
+	Serial.print("* Node ID: ");
+	Serial.print(androidRequest[10], HEX);
+	Serial.println(androidRequest[11], HEX);
+
+	Serial.print("* Timestamp: ");
+	Serial.print(androidRequest[12], HEX);
+	Serial.print(androidRequest[13], HEX);
+	Serial.print(androidRequest[14], HEX);
+	Serial.println(androidRequest[15], HEX);
+}
+
+void createAuthResponsePacket() {
+	// Node ID
+	androidResponse[0] = 0x00;
+	androidResponse[1] = 0x01;
+
+	// Device ID (e.g., IMEI)
+	// Get from AuthRequest
+	for (uint8_t i = 2; i < 10; i++) {
+		androidResponse[i] = androidRequest[i];
+	}
+
+	// Nonce (Fio)
+	// Generate a random number
+	androidResponse[10] = 0x00;
+	androidResponse[11] = uint8_t(random(255));
+
+	// Nonce (Received)
+	androidResponse[12] = androidRequest[0];
+	androidResponse[13] = androidRequest[1];
+
+	// Timestamp
+	timeMillis = millis();
+	androidResponse[14] = timeMillis >> 24;
+	androidResponse[15] = timeMillis >> 16;
+	androidResponse[16] = timeMillis >> 8;
+	androidResponse[17] = timeMillis;
+}
+
+void printTokenPacket() {
+	Serial.print("* Token: ");
+	Serial.print(androidRequest[0], HEX);
+	Serial.println(androidRequest[1], HEX);
+
+	Serial.print("* Device ID: ");
+	for (uint8_t i = 2; i < 10; i++) {
+		Serial.print(androidRequest[i], HEX);
+	}
+	Serial.println();
+
+	Serial.print("* Node ID: ");
+	Serial.print(androidRequest[10], HEX);
+	Serial.println(androidRequest[11], HEX);
+
+	Serial.print("* Nonce XOR: ");
+	Serial.print(androidRequest[12], HEX);
+	Serial.println(androidRequest[13], HEX);
+
+	Serial.print("* Timestamp: ");
+	Serial.print(androidRequest[14], HEX);
+	Serial.print(androidRequest[15], HEX);
+	Serial.print(androidRequest[16], HEX);
+	Serial.println(androidRequest[17], HEX);
+}
+
+void verifyTokenPacket(uint8_t serverToken[]) {
+	// Check Node ID
+
+	// Check Device ID
+
+	// Check Nonces
+
+	// Check token
+	if (serverToken[0] == androidRequest[0] && serverToken[1] == androidRequest[1]) {
+		flashLed(statusLed, 20, 25);
+		flashLed(errorLed, 20, 25);
+
+		digitalWrite(dataLed, HIGH);
+
+		delay(5000);
+
+		digitalWrite(dataLed, LOW);
+
+		Serial.println("Success! Token is correct.");
+	}
+
+	else {
+		flashLed(statusLed, 2, 25);
+		flashLed(errorLed, 2, 25);
+
+		Serial.println("Error: Incorrect correct.");
+	}
+}
+
 void setup() {
 	pinMode(notificationLed, OUTPUT);
 	pinMode(statusLed, OUTPUT);
@@ -118,7 +223,7 @@ void setup() {
 	Serial.println("Setup complete.");
 }
 
-// continuously reads packets, looking for RX16 or RX64
+// continuously reads packets, looking for RX16
 void loop() {
 
 	// receive RX
@@ -143,49 +248,10 @@ void loop() {
 			// aes256_dec_single(key, androidRequest);
 
 			// Echo received data
-			Serial.print("* Nonce: ");
-			Serial.print(androidRequest[0], HEX);
-			Serial.println(androidRequest[1], HEX);
+			printAuthRequestPacket();
 
-			// Node ID
-			androidResponse[0] = 0x00;
-			androidResponse[1] = 0x01;
-
-			// Device ID (e.g., IMEI)
-			Serial.print("* Device ID: ");
-			for (uint8_t i = 2; i < 10; i++) {
-				androidResponse[i] = androidRequest[i];
-				Serial.print(androidRequest[i], HEX);
-			}
-			Serial.println();
-
-			Serial.print("* Node ID: ");
-			Serial.print(androidRequest[10], HEX);
-			Serial.println(androidRequest[11], HEX);
-
-			Serial.print("* Timestamp: ");
-			Serial.print(androidRequest[12], HEX);
-			Serial.print(androidRequest[13], HEX);
-			Serial.print(androidRequest[14], HEX);
-			Serial.println(androidRequest[15], HEX);
-
-			// Nonce (Fio)
-			randNumber = random(255);
-			uint8_t nonceFio = uint8_t(randNumber);
-
-			androidResponse[10] = 0x00;
-			androidResponse[11] = nonceFio;
-
-			// Nonce (Received)
-			androidResponse[12] = androidRequest[0];
-			androidResponse[13] = androidRequest[1];
-
-			// Timestamp
-			timeMillis = millis();
-			androidResponse[14] = timeMillis >> 24;
-			androidResponse[15] = timeMillis >> 16;
-			androidResponse[16] = timeMillis >> 8;
-			androidResponse[17] = timeMillis;
+			// Respond to the auth request
+			createAuthResponsePacket();
 
 			// for (uint8_t i = 18; i < sizeof(androidResponse); i++) {
 			// 	androidResponse[i] = androidRequest[i];
@@ -228,11 +294,10 @@ void loop() {
 								xbee.getResponse().getRx16Response(rx16);
 								uint8_t dataLength = rx16.getDataLength();
 
-								uint8_t token0 = rx16.getData(0);
-								uint8_t token1 = rx16.getData(1);
+								uint8_t* serverToken = rx16.getData();
 
-								Serial.print(token0, HEX);
-								Serial.println(token1, HEX);
+								Serial.print(serverToken[0], HEX);
+								Serial.println(serverToken[1], HEX);
 
 								// if (msb == 0x00 && lsb == 0xFF) {
 								// Received 2FA token, ready to receive from Android
@@ -267,58 +332,10 @@ void loop() {
 										// aes256_dec_single(key, androidRequest);
 
 										// Echo the received data
-										Serial.print("* Token: ");
-										Serial.print(androidRequest[0], HEX);
-										Serial.println(androidRequest[1], HEX);
+										printTokenPacket();
 
-										Serial.print("* Device ID: ");
-										for (uint8_t i = 2; i < 10; i++) {
-											Serial.print(androidRequest[i], HEX);
-										}
-										Serial.println();
-
-										Serial.print("* Node ID: ");
-										Serial.print(androidRequest[10], HEX);
-										Serial.println(androidRequest[11], HEX);
-
-										Serial.print("* Nonce XOR: ");
-										Serial.print(androidRequest[12], HEX);
-										Serial.println(androidRequest[13], HEX);
-
-										Serial.print("* Timestamp: ");
-										Serial.print(androidRequest[14], HEX);
-										Serial.print(androidRequest[15], HEX);
-										Serial.print(androidRequest[16], HEX);
-										Serial.println(androidRequest[17], HEX);
-
-										// Check Node ID
-
-										// Check Device ID
-
-										// Check Nonces
-
-										// Check token
-										if (token0 == androidRequest[0] && token1 == androidRequest[1]) {
-											flashLed(statusLed, 20, 25);
-											flashLed(errorLed, 20, 25);
-
-											digitalWrite(dataLed, HIGH);
-
-											delay(5000);
-
-											digitalWrite(dataLed, LOW);
-
-											Serial.println("Success! Token is correct.");
-										}
-
-										else {
-											flashLed(statusLed, 2, 25);
-											flashLed(errorLed, 2, 25);
-
-											Serial.println("Error: Incorrect correct.");
-										}
-
-										// if (msb == 0x00 && lsb == 0xFF) {
+										// Verify token
+										verifyTokenPacket(serverToken);
 									}
 									else {
 										// not something we were expecting
