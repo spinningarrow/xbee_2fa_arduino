@@ -155,6 +155,62 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 	}
 }
 
+void receiveAuthRequest() {
+	xbee.readPacket();
+
+	if (xbee.getResponse().isAvailable()) {
+		// got something
+
+		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+			// got a rx packet
+			Serial.println("Received 2FA request from mobile device:");
+
+			xbee.getResponse().getRx16Response(rx16);
+			uint8_t dataLength = rx16.getDataLength();
+
+			for (uint8_t i = 0; i < dataLength; i++) {
+				androidRequest[i] = rx16.getData(i);
+			}
+
+			// Decrypt the received data
+			// aes256_dec_single(key, androidRequest);
+
+			// Echo received data
+			printAuthRequestPacket();
+
+			// Respond to the auth request
+			createAuthResponsePacket();
+
+			// for (uint8_t i = 18; i < sizeof(androidResponse); i++) {
+			// 	androidResponse[i] = androidRequest[i];
+			// }
+
+			// aes256_enc_single(key, androidResponse);
+
+			// Transmit the response data
+			sendAuthResponse();
+
+			// TODO check option, rssi bytes
+			flashLed(statusLed, 1, 10);
+		}
+		else {
+			// not something we were expecting
+			flashLed(errorLed, 2, 25);
+			Serial.println("Error. Got something instead of an RX16 response.");
+		}
+	}
+	else if (xbee.getResponse().isError()) {
+		//nss.print("Error reading packet.  Error code: ");
+		//nss.println(xbee.getResponse().getErrorCode());
+		// or flash error led
+		flashLed(errorLed, 5, 25);
+		Serial.println("Error reading packet.");
+	}
+	else {
+		Serial.print("An unexpected error occurred.");
+	}
+}
+
 void sendAuthResponse() {
 	Serial.print("Sending reply to mobile device...");
 	xbee.send(txAndroidResponse);
@@ -335,59 +391,6 @@ void setup() {
 
 // continuously reads packets, looking for RX16
 void loop() {
-
 	// receive RX
-	xbee.readPacket();
-
-	if (xbee.getResponse().isAvailable()) {
-		// got something
-
-		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
-			// got a rx packet
-			Serial.println("Received 2FA request from mobile device:");
-
-			xbee.getResponse().getRx16Response(rx16);
-			uint8_t dataLength = rx16.getDataLength();
-
-			for (uint8_t i = 0; i < dataLength; i++) {
-				androidRequest[i] = rx16.getData(i);
-			}
-
-			// Decrypt the received data
-			// aes256_dec_single(key, androidRequest);
-
-			// Echo received data
-			printAuthRequestPacket();
-
-			// Respond to the auth request
-			createAuthResponsePacket();
-
-			// for (uint8_t i = 18; i < sizeof(androidResponse); i++) {
-			// 	androidResponse[i] = androidRequest[i];
-			// }
-
-			// aes256_enc_single(key, androidResponse);
-
-			// Transmit the response data
-			sendAuthResponse();
-
-			// TODO check option, rssi bytes
-			flashLed(statusLed, 1, 10);
-		}
-		else {
-			// not something we were expecting
-			flashLed(errorLed, 2, 25);
-			Serial.println("Error. Got something instead of an RX16 response.");
-		}
-	}
-	else if (xbee.getResponse().isError()) {
-		//nss.print("Error reading packet.  Error code: ");
-		//nss.println(xbee.getResponse().getErrorCode());
-		// or flash error led
-		flashLed(errorLed, 5, 25);
-		Serial.println("Error reading packet.");
-	}
-	else {
-		Serial.print("An unexpected error occurred.");
-	}
+	receiveAuthRequest();
 }
