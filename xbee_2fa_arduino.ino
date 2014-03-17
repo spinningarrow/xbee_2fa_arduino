@@ -155,6 +155,52 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 	}
 }
 
+void sendAuthResponse() {
+	Serial.print("Sending reply to mobile device...");
+	xbee.send(txAndroidResponse);
+
+	// flash TX indicator
+	flashLed(statusLed, 1, 100);
+
+	// after sending a tx request, we expect a status response
+	// wait up to 5 seconds for the status response
+	if (xbee.readPacket(5000)) {
+		// got a response!
+
+		// should be a znet tx status
+		if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
+			xbee.getResponse().getZBTxStatusResponse(txStatus);
+
+			// get the delivery status, the fifth byte
+			if (txStatus.getStatus() == SUCCESS) {
+				// success.  time to celebrate
+				Serial.println("sent.");
+				flashLed(statusLed, 5, 50);
+
+				// Now wait for server to send the 2FA token
+				receiveServerToken();
+			}
+			else {
+				// the remote XBee did not receive our packet. is it powered on?
+				flashLed(errorLed, 3, 500);
+				Serial.println("Remote XBee did not receive our packet. Is it powered on?");
+			}
+		}
+	}
+	else if (xbee.getResponse().isError()) {
+		//nss.print("Error reading packet.  Error code: ");
+		//nss.println(xbee.getResponse().getErrorCode());
+		// or flash error led
+		flashLed(errorLed, 5, 500);
+		Serial.println("Error reading packet.");
+	}
+	else {
+		// local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
+		flashLed(errorLed, 2, 50);
+		Serial.println("Error. Radio is not configured properly or not connected.");
+	}
+}
+
 void receiveServerToken() {
 	Serial.println("Waiting for server to send 2FA token...");
 	xbee.readPacket(5000);
@@ -323,57 +369,10 @@ void loop() {
 			// aes256_enc_single(key, androidResponse);
 
 			// Transmit the response data
-			Serial.print("Sending reply to mobile device...");
-			xbee.send(txAndroidResponse);
-
-			// flash TX indicator
-			flashLed(statusLed, 1, 100);
-
-			// after sending a tx request, we expect a status response
-			// wait up to 5 seconds for the status response
-			if (xbee.readPacket(5000)) {
-				// got a response!
-
-				// should be a znet tx status
-				if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
-					xbee.getResponse().getZBTxStatusResponse(txStatus);
-
-					// get the delivery status, the fifth byte
-					if (txStatus.getStatus() == SUCCESS) {
-						// success.  time to celebrate
-						Serial.println("sent.");
-						flashLed(statusLed, 5, 50);
-
-						// Now wait for server to send the 2FA token
-						receiveServerToken();
-					}
-					else {
-						// the remote XBee did not receive our packet. is it powered on?
-						flashLed(errorLed, 3, 500);
-						Serial.println("Remote XBee did not receive our packet. Is it powered on?");
-					}
-				}
-			}
-			else if (xbee.getResponse().isError()) {
-				//nss.print("Error reading packet.  Error code: ");
-				//nss.println(xbee.getResponse().getErrorCode());
-				// or flash error led
-				flashLed(errorLed, 5, 500);
-				Serial.println("Error reading packet.");
-			}
-			else {
-				// local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
-				flashLed(errorLed, 2, 50);
-				Serial.println("Error. Radio is not configured properly or not connected.");
-			}
-
-			delay(1000);
+			sendAuthResponse();
 
 			// TODO check option, rssi bytes
 			flashLed(statusLed, 1, 10);
-
-			// set dataLed PWM to value of the first byte in the data
-			// analogWrite(dataLed, data);
 		}
 		else {
 			// not something we were expecting
@@ -387,5 +386,8 @@ void loop() {
 		// or flash error led
 		flashLed(errorLed, 5, 25);
 		Serial.println("Error reading packet.");
+	}
+	else {
+		Serial.print("An unexpected error occurred.");
 	}
 }
