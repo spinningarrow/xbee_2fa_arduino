@@ -155,6 +155,101 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 	}
 }
 
+void receiveServerToken() {
+	Serial.println("Waiting for server to send 2FA token...");
+	xbee.readPacket(5000);
+
+	if (xbee.getResponse().isAvailable()) {
+		// got something, hopefully a token
+		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+			// got a rx packet
+			Serial.print("Token received from server: ");
+			xbee.getResponse().getRx16Response(rx16);
+
+			// Token length should be 3 bytes (6 digits)
+			uint8_t* serverToken = rx16.getData();
+
+			// Echo the hex of the token received
+			Serial.print(serverToken[0], HEX);
+			Serial.print(serverToken[1], HEX);
+			Serial.println(serverToken[2], HEX);
+
+			// Received 2FA token, ready to receive from Android
+			receiveDeviceToken(serverToken);
+		}
+		else {
+			// not something we were expecting
+			flashLed(errorLed, 2, 25);
+			Serial.println("An unexpected error occurred.");
+		}
+	}
+	else if (xbee.getResponse().isError()) {
+		//nss.print("Error reading packet.  Error code: ");
+		//nss.println(xbee.getResponse().getErrorCode());
+		// or flash error led
+		flashLed(errorLed, 5, 25);
+		Serial.println("Error reading packet.");
+	}
+	else {
+		Serial.println("Server didn't send anything within the time frame.");
+		Serial.println("Starting over from the beginning.");
+	}
+}
+
+void receiveDeviceToken(uint8_t serverToken[]) {
+	Serial.print("Waiting for mobile device to send token request...");
+	flashLed(statusLed, 5, 25);
+	// }
+
+	// Now wait for Android to send data
+	xbee.readPacket(120000);
+
+	if (xbee.getResponse().isAvailable()) {
+		// got something, hopefully the Android response
+		// Token (2)
+		// Device ID (8)
+		// NodeId (2)
+		// Nonce(android) (2)
+		// Nonce(node) (2)
+		// Timestamp (4)
+		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+			Serial.println("received.");
+
+			// got a rx packet
+			xbee.getResponse().getRx16Response(rx16);
+			uint8_t dataLength = rx16.getDataLength();
+
+			for (uint8_t i = 0; i < dataLength; i++) {
+				androidRequest[i] = rx16.getData(i);
+			}
+
+			// Decrypt the received data
+			// aes256_dec_single(key, androidRequest);
+
+			// Echo the received data
+			printTokenPacket();
+
+			// Verify token
+			verifyTokenPacket(serverToken);
+		}
+		else {
+			// not something we were expecting
+			flashLed(errorLed, 2, 25);
+			Serial.println("Error: Not an RX_16_RESPONSE");
+		}
+	}
+	else if (xbee.getResponse().isError()) {
+		//nss.print("Error reading packet.  Error code: ");
+		//nss.println(xbee.getResponse().getErrorCode());
+		// or flash error led
+		flashLed(errorLed, 5, 25);
+		Serial.println("Error reading packet.");
+	}
+	else {
+		Serial.println("An unexpected error occurred.");
+	}
+}
+
 void setup() {
 	// start serial
 	Serial.begin(57600);
@@ -250,95 +345,7 @@ void loop() {
 						flashLed(statusLed, 5, 50);
 
 						// Now wait for server to send the 2FA token
-						Serial.println("Waiting for server to send 2FA token...");
-						xbee.readPacket(5000);
-
-						if (xbee.getResponse().isAvailable()) {
-							// got something, hopefully a token
-							if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
-								// got a rx packet
-								Serial.print("Token received from server: ");
-								xbee.getResponse().getRx16Response(rx16);
-
-								// Token length should be 3 bytes (6 digits)
-								uint8_t* serverToken = rx16.getData();
-
-								// Echo the hex of the token received
-								Serial.print(serverToken[0], HEX);
-								Serial.print(serverToken[1], HEX);
-								Serial.println(serverToken[2], HEX);
-
-								// if (msb == 0x00 && lsb == 0xFF) {
-								// Received 2FA token, ready to receive from Android
-								Serial.print("Waiting for mobile device to send token request...");
-								flashLed(statusLed, 5, 25);
-								// }
-
-								// Now wait for Android to send data
-								xbee.readPacket(120000);
-
-								if (xbee.getResponse().isAvailable()) {
-									// got something, hopefully the Android response
-									// Token (2)
-									// Device ID (8)
-									// NodeId (2)
-									// Nonce(android) (2)
-									// Nonce(node) (2)
-									// Timestamp (4)
-									if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
-										Serial.println("received.");
-
-										// got a rx packet
-										xbee.getResponse().getRx16Response(rx16);
-										uint8_t dataLength = rx16.getDataLength();
-
-										for (uint8_t i = 0; i < dataLength; i++) {
-											androidRequest[i] = rx16.getData(i);
-										}
-
-										// Decrypt the received data
-										// aes256_dec_single(key, androidRequest);
-
-										// Echo the received data
-										printTokenPacket();
-
-										// Verify token
-										verifyTokenPacket(serverToken);
-									}
-									else {
-										// not something we were expecting
-										flashLed(errorLed, 2, 25);
-										Serial.println("Error: Not an RX_16_RESPONSE");
-									}
-								}
-								else if (xbee.getResponse().isError()) {
-									//nss.print("Error reading packet.  Error code: ");
-									//nss.println(xbee.getResponse().getErrorCode());
-									// or flash error led
-									flashLed(errorLed, 5, 25);
-									Serial.println("Error reading packet.");
-								}
-								else {
-									Serial.println("An unexpected error occurred.");
-								}
-							}
-							else {
-								// not something we were expecting
-								flashLed(errorLed, 2, 25);
-								Serial.println("An unexpected error occurred.");
-							}
-						}
-						else if (xbee.getResponse().isError()) {
-							//nss.print("Error reading packet.  Error code: ");
-							//nss.println(xbee.getResponse().getErrorCode());
-							// or flash error led
-							flashLed(errorLed, 5, 25);
-							Serial.println("Error reading packet.");
-						}
-						else {
-							Serial.println("Server didn't send anything within the time frame.");
-							Serial.println("Starting over from the beginning.");
-						}
+						receiveServerToken();
 					}
 					else {
 						// the remote XBee did not receive our packet. is it powered on?
