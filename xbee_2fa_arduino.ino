@@ -1,4 +1,5 @@
 #include <XBee.h>
+#include "aes256.h"
 
 XBee xbee = XBee();
 XBeeResponse response = XBeeResponse();
@@ -12,10 +13,15 @@ int errorLed = 12;
 int dataLed = 13;
 unsigned long timeMillis;
 
-uint8_t option = 0;
-uint8_t data = 0;
+// Create AES context and key
+aes256_context ctxt;
 
-uint8_t key[] = {0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7};
+uint8_t key[] = {
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
+};
 
 // Received packet format:
 // Nonce: 2 bytes
@@ -174,6 +180,7 @@ void receiveAuthRequest() {
 
 			// Decrypt the received data
 			// aes256_dec_single(key, androidRequest);
+			aes256_decrypt_ecb(&ctxt, androidRequest);
 
 			// Echo received data
 			printAuthRequestPacket();
@@ -205,9 +212,6 @@ void receiveAuthRequest() {
 		// or flash error led
 		flashLed(errorLed, 5, 25);
 		Serial.println("Error reading packet.");
-	}
-	else {
-		Serial.print("An unexpected error occurred.");
 	}
 }
 
@@ -269,7 +273,10 @@ void receiveServerToken() {
 			xbee.getResponse().getRx16Response(rx16);
 
 			// Token length should be 3 bytes (6 digits)
-			uint8_t* serverToken = rx16.getData();
+			uint8_t serverToken[3];
+			serverToken[0] = rx16.getData(0);
+			serverToken[1] = rx16.getData(1);
+			serverToken[2] = rx16.getData(2);
 
 			// Echo the hex of the token received
 			Serial.print(serverToken[0], HEX);
@@ -327,6 +334,7 @@ void receiveDeviceToken(uint8_t serverToken[]) {
 
 			// Decrypt the received data
 			// aes256_dec_single(key, androidRequest);
+			aes256_decrypt_ecb(&ctxt, androidRequest);
 
 			// Echo the received data
 			printTokenPacket();
@@ -365,7 +373,8 @@ void setup() {
 	pinMode(errorLed, OUTPUT);
 	pinMode(dataLed,  OUTPUT);
 
-	// aes128_dec_single(key, aesdata2);
+	// Initialise AES
+	aes256_init(&ctxt, key);
 
 	// Generate a random seed
 	// if analog input pin 0 is unconnected, random analog
@@ -387,6 +396,8 @@ void setup() {
 	// Flash twice; setup is complete
 	flashLed(notificationLed, 2, 50);
 	Serial.println("done.");
+
+	// aes256_done(&ctxt);
 }
 
 // continuously reads packets, looking for RX16
