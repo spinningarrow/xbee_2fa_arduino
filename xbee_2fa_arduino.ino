@@ -1,28 +1,4 @@
-/**
- * Copyright (c) 2009 Andrew Rapp. All rights reserved.
- *
- * This file is part of XBee-Arduino.
- *
- * XBee-Arduino is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * XBee-Arduino is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with XBee-Arduino.  If not, see <http://www.gnu.org/licenses/>.
- */
-
 #include <XBee.h>
-/*
-This example is for Series 1 XBee (802.15.4)
- Receives either a RX16 or RX64 packet and sets a PWM value based on packet data.
- Error led is flashed if an unexpected packet is received
- */
 
 XBee xbee = XBee();
 XBeeResponse response = XBeeResponse();
@@ -34,22 +10,12 @@ int notificationLed = 10;
 int statusLed = 11;
 int errorLed = 12;
 int dataLed = 13;
-long randNumber;
 unsigned long timeMillis;
 
 uint8_t option = 0;
 uint8_t data = 0;
 
-// uint8_t dataLong[] = {0, 0, 0, 0};
-// uint8_t payload2[] = { 0, 0, 0, 0 };
-
-// allocate two bytes for to hold a 10-bit analog reading
-// uint8_t payload[] = { 0, 0, 0 };
-
 uint8_t key[] = {0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7};
-// uint8_t aesdata[] = {0,1,2,3,4,5,6,7,8,9,0,1,2,3,4,5}; //16 chars == 16 bytes
-
-// uint8_t aesdata2[] = {0x5E, 0x8C, 0x5D, 0x61, 0x3C, 0xF5, 0x00, 0x99, 0x5F, 0xB6, 0xB0, 0x3E, 0x0A, 0x8B, 0x26, 0x6D};
 
 // Received packet format:
 // Nonce: 2 bytes
@@ -57,22 +23,13 @@ uint8_t key[] = {0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7
 // Node ID: 2 bytes
 // Timestamp: 4 bytes
 uint8_t androidRequest[32];
-
 uint8_t androidResponse[32];
 
-
-// 5E 8C 5D 61 3C F5 00 99 5F B6 B0 3E 0A 8B 26 6D
-// 0x5E 0x8C 0x5D 0x61 0x3C 0xF5 0x00 0x99 0x5F 0xB6 0xB0 0x3E 0x0A 0x8B 0x26 0x6D
-
 // 16-bit addressing: Enter address of remote XBee, typically the coordinator
-// Tx16Request tx = Tx16Request(0xFFFF, payload, sizeof(payload));
-// Tx16Request txaes = Tx16Request(0xFFFF, aesdata2, sizeof(aesdata2));
 Tx16Request txAndroidResponse = Tx16Request(0xFFFF, androidResponse, sizeof(androidResponse));
 TxStatusResponse txStatus = TxStatusResponse();
 
-// Tx16Request tx2 = Tx16Request(0xFFFF, payload2, sizeof(payload2));
-TxStatusResponse txStatus2 = TxStatusResponse();
-
+// Flashes an LED at a given rate
 void flashLed(int pin, int times, int wait) {
 	for (int i = 0; i < times; i++) {
 		digitalWrite(pin, HIGH);
@@ -85,6 +42,8 @@ void flashLed(int pin, int times, int wait) {
 	}
 }
 
+// Prints the request data sent by a mobile device that initiates the
+// 2FA auth procedure
 void printAuthRequestPacket() {
 	Serial.print("* Nonce: ");
 	Serial.print(androidRequest[0], HEX);
@@ -107,6 +66,7 @@ void printAuthRequestPacket() {
 	Serial.println(androidRequest[15], HEX);
 }
 
+// Creates a response to the 2FA auth request
 void createAuthResponsePacket() {
 	// Node ID
 	androidResponse[0] = 0x00;
@@ -135,6 +95,8 @@ void createAuthResponsePacket() {
 	androidResponse[17] = timeMillis;
 }
 
+// Prints the packet data sent by the mobile device that contains the
+// 2FA token
 void printTokenPacket() {
 	Serial.print("* Token: ");
 	Serial.print(androidRequest[0], HEX);
@@ -161,6 +123,8 @@ void printTokenPacket() {
 	Serial.println(androidRequest[17], HEX);
 }
 
+// Verifies that the token received matches the one sent by the server
+// and that other packet data is also correct
 void verifyTokenPacket(uint8_t serverToken[]) {
 	// Check Node ID
 
@@ -169,7 +133,8 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 	// Check Nonces
 
 	// Check token
-	if (serverToken[0] == androidRequest[0] && serverToken[1] == androidRequest[1]) {
+	if (serverToken[0] == androidRequest[0]
+		&& serverToken[1] == androidRequest[1]) {
 		flashLed(statusLed, 20, 25);
 		flashLed(errorLed, 20, 25);
 
@@ -186,22 +151,26 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 		flashLed(statusLed, 2, 25);
 		flashLed(errorLed, 2, 25);
 
-		Serial.println("Error: Incorrect correct.");
+		Serial.println("Error: Incorrect token.");
 	}
 }
 
 void setup() {
+	// start serial
+	Serial.begin(57600);
+	xbee.setSerial(Serial);
+
+	Serial.print("Starting setup...");
+
+	// Set the LED pins to output
 	pinMode(notificationLed, OUTPUT);
 	pinMode(statusLed, OUTPUT);
 	pinMode(errorLed, OUTPUT);
 	pinMode(dataLed,  OUTPUT);
 
-	// start serial
-	Serial.begin(57600);
-	xbee.setSerial(Serial);
-
 	// aes128_dec_single(key, aesdata2);
 
+	// Generate a random seed
 	// if analog input pin 0 is unconnected, random analog
 	// noise will cause the call to randomSeed() to generate
 	// different seed numbers each time the sketch runs.
@@ -220,14 +189,13 @@ void setup() {
 
 	// Flash twice; setup is complete
 	flashLed(notificationLed, 2, 50);
-	Serial.println("Setup complete.");
+	Serial.println("done.");
 }
 
 // continuously reads packets, looking for RX16
 void loop() {
 
 	// receive RX
-	// encrypted packet
 	xbee.readPacket();
 
 	if (xbee.getResponse().isAvailable()) {
@@ -260,8 +228,8 @@ void loop() {
 			// aes256_enc_single(key, androidResponse);
 
 			// Transmit the response data
-			xbee.send(txAndroidResponse);
 			Serial.print("Sending reply to mobile device...");
+			xbee.send(txAndroidResponse);
 
 			// flash TX indicator
 			flashLed(statusLed, 1, 100);
@@ -273,13 +241,13 @@ void loop() {
 
 				// should be a znet tx status
 				if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
-					xbee.getResponse().getZBTxStatusResponse(txStatus2);
+					xbee.getResponse().getZBTxStatusResponse(txStatus);
 
 					// get the delivery status, the fifth byte
-					if (txStatus2.getStatus() == SUCCESS) {
+					if (txStatus.getStatus() == SUCCESS) {
 						// success.  time to celebrate
-						flashLed(statusLed, 5, 50);
 						Serial.println("sent.");
+						flashLed(statusLed, 5, 50);
 
 						// Now wait for server to send the 2FA token
 						Serial.println("Waiting for server to send 2FA token...");
@@ -290,20 +258,20 @@ void loop() {
 							if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
 								// got a rx packet
 								Serial.print("Token received from server: ");
-
 								xbee.getResponse().getRx16Response(rx16);
-								uint8_t dataLength = rx16.getDataLength();
 
+								// Token length should be 3 bytes (6 digits)
 								uint8_t* serverToken = rx16.getData();
 
+								// Echo the hex of the token received
 								Serial.print(serverToken[0], HEX);
-								Serial.println(serverToken[1], HEX);
+								Serial.print(serverToken[1], HEX);
+								Serial.println(serverToken[2], HEX);
 
 								// if (msb == 0x00 && lsb == 0xFF) {
 								// Received 2FA token, ready to receive from Android
-								flashLed(statusLed, 5, 25);
-								flashLed(errorLed, 5, 25);
 								Serial.print("Waiting for mobile device to send token request...");
+								flashLed(statusLed, 5, 25);
 								// }
 
 								// Now wait for Android to send data
