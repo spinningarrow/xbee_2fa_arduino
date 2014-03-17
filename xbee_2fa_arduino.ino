@@ -18,7 +18,6 @@
  */
 
 #include <XBee.h>
-#include <AESLib.h>
 /*
 This example is for Series 1 XBee (802.15.4)
  Receives either a RX16 or RX64 packet and sets a PWM value based on packet data.
@@ -139,7 +138,7 @@ void loop() {
 			}
 
 			// Decrypt the received data
-			aes256_dec_single(key, androidRequest);
+			// aes256_dec_single(key, androidRequest);
 
 			// Node ID
 			androidResponse[0] = 0x00;
@@ -234,7 +233,7 @@ void loop() {
 										}
 
 										// Decrypt the received data
-										aes256_dec_single(key, androidRequest);
+										// aes256_dec_single(key, androidRequest);
 
 										// Check Node ID
 
