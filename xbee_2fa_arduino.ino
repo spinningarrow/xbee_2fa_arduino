@@ -275,7 +275,7 @@ void loop() {
 								// }
 
 								// Now wait for Android to send data
-								xbee.readPacket(30000);
+								xbee.readPacket(120000);
 
 								if (xbee.getResponse().isAvailable()) {
 									// got something, hopefully the Android response
