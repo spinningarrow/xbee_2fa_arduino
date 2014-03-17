@@ -130,8 +130,7 @@ void loop() {
 
 		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
 			// got a rx packet
-			Serial.println("Received 2FA request from mobile device.");
-			// TODO echo data in a structured manner
+			Serial.println("Received 2FA request from mobile device:");
 
 			xbee.getResponse().getRx16Response(rx16);
 			uint8_t dataLength = rx16.getDataLength();
@@ -143,14 +142,32 @@ void loop() {
 			// Decrypt the received data
 			// aes256_dec_single(key, androidRequest);
 
+			// Echo received data
+			Serial.print("* Nonce: ");
+			Serial.print(androidRequest[0], HEX);
+			Serial.println(androidRequest[1], HEX);
+
 			// Node ID
 			androidResponse[0] = 0x00;
 			androidResponse[1] = 0x01;
 
 			// Device ID (e.g., IMEI)
+			Serial.print("* Device ID: ");
 			for (uint8_t i = 2; i < 10; i++) {
 				androidResponse[i] = androidRequest[i];
+				Serial.print(androidRequest[i], HEX);
 			}
+			Serial.println();
+
+			Serial.print("* Node ID: ");
+			Serial.print(androidRequest[10], HEX);
+			Serial.println(androidRequest[11], HEX);
+
+			Serial.print("* Timestamp: ");
+			Serial.print(androidRequest[12], HEX);
+			Serial.print(androidRequest[13], HEX);
+			Serial.print(androidRequest[14], HEX);
+			Serial.println(androidRequest[15], HEX);
 
 			// Nonce (Fio)
 			randNumber = random(255);
