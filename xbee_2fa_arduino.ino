@@ -195,7 +195,7 @@ void loop() {
 
 			// Transmit the response data
 			xbee.send(txAndroidResponse);
-			Serial.println("Sending reply to mobile device...");
+			Serial.print("Sending reply to mobile device...");
 
 			// flash TX indicator
 			flashLed(statusLed, 1, 100);
@@ -213,7 +213,7 @@ void loop() {
 					if (txStatus2.getStatus() == SUCCESS) {
 						// success.  time to celebrate
 						flashLed(statusLed, 5, 50);
-						Serial.println("...sent.");
+						Serial.println("sent.");
 
 						// Now wait for server to send the 2FA token
 						Serial.println("Waiting for server to send 2FA token...");
@@ -231,14 +231,14 @@ void loop() {
 								uint8_t token0 = rx16.getData(0);
 								uint8_t token1 = rx16.getData(1);
 
-								Serial.print(token0);
-								Serial.println(token1);
+								Serial.print(token0, HEX);
+								Serial.println(token1, HEX);
 
 								// if (msb == 0x00 && lsb == 0xFF) {
 								// Received 2FA token, ready to receive from Android
 								flashLed(statusLed, 5, 25);
 								flashLed(errorLed, 5, 25);
-								Serial.println("Waiting for mobile device to send token request...");
+								Serial.print("Waiting for mobile device to send token request...");
 								// }
 
 								// Now wait for Android to send data
@@ -253,7 +253,7 @@ void loop() {
 									// Nonce(node) (2)
 									// Timestamp (4)
 									if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
-										Serial.println("...received.");
+										Serial.println("received.");
 
 										// got a rx packet
 										xbee.getResponse().getRx16Response(rx16);
@@ -265,6 +265,31 @@ void loop() {
 
 										// Decrypt the received data
 										// aes256_dec_single(key, androidRequest);
+
+										// Echo the received data
+										Serial.print("* Token: ");
+										Serial.print(androidRequest[0], HEX);
+										Serial.println(androidRequest[1], HEX);
+
+										Serial.print("* Device ID: ");
+										for (uint8_t i = 2; i < 10; i++) {
+											Serial.print(androidRequest[i], HEX);
+										}
+										Serial.println();
+
+										Serial.print("* Node ID: ");
+										Serial.print(androidRequest[10], HEX);
+										Serial.println(androidRequest[11], HEX);
+
+										Serial.print("* Nonce XOR: ");
+										Serial.print(androidRequest[12], HEX);
+										Serial.println(androidRequest[13], HEX);
+
+										Serial.print("* Timestamp: ");
+										Serial.print(androidRequest[14], HEX);
+										Serial.print(androidRequest[15], HEX);
+										Serial.print(androidRequest[16], HEX);
+										Serial.println(androidRequest[17], HEX);
 
 										// Check Node ID
 
