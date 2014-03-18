@@ -1,6 +1,9 @@
 #include <XBee.h>
 #include "aes256.h"
 
+// ID for this node
+uint8_t nodeId[] = { 0x00, 0x01 };
+
 XBee xbee = XBee();
 XBeeResponse response = XBeeResponse();
 
@@ -23,13 +26,11 @@ uint8_t key[] = {
 	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07
 };
 
-// Received packet format:
-// Nonce: 2 bytes
-// IMEI: 8 bytes
-// Node ID: 2 bytes
-// Timestamp: 4 bytes
 uint8_t androidRequest[32];
 uint8_t androidResponse[32];
+
+uint8_t nonceDevice[2];
+uint8_t nonceLocal[2];
 
 // 16-bit addressing: Enter address of remote XBee, typically the coordinator
 Tx16Request txAndroidResponse = Tx16Request(0xFFFF, androidResponse, sizeof(androidResponse));
@@ -86,12 +87,13 @@ void createAuthResponsePacket() {
 
 	// Nonce (Fio)
 	// Generate a random number
-	androidResponse[10] = 0x00;
-	androidResponse[11] = uint8_t(random(255));
+	nonceLocal = { 0x00, uint8_t(random(255)) };
+	androidResponse[10] = nonceLocal[0];
+	androidResponse[11] = nonceLocal[1];
 
 	// Nonce (Received)
-	androidResponse[12] = androidRequest[0];
-	androidResponse[13] = androidRequest[1];
+	androidResponse[12] = nonceDevice[0];
+	androidResponse[13] = nonceDevice[1];
 
 	// Timestamp
 	timeMillis = millis();
@@ -137,12 +139,32 @@ void printTokenPacket() {
 // Verifies that the token received matches the one sent by the server
 // and that other packet data is also correct
 void verifyTokenPacket(uint8_t serverToken[]) {
-	Serial.print("Verifying token...");
+	Serial.print("Verifying...");
+
 	// Check Node ID
+	if (androidRequest[11] == nodeId[0]
+		&& androidRequest[12] == nodeId[1]) {
+		Serial.print("Node ID [OK] ");
+	}
+
+	else {
+		Serial.println("Node IDs do not match.");
+		return;
+	}
 
 	// Check Device ID
 
-	// Check Nonces
+	// Check Nonces XOR
+	uint8_t nonceXOR[] = { nonceLocal[0] ^ nonceDevice[0], nonceLocal[1] ^ nonceDevice[1] };
+	if (androidRequest[13] == nonceXOR[0]
+		&& androidRequest[14] == nonceXOR[1]) {
+		Serial.print("Nonce [OK] ");
+	}
+
+	else {
+		Serial.println("Nonces don't match.");
+		return;
+	}
 
 	// Check token
 	if (serverToken[0] == androidRequest[0]
@@ -150,14 +172,15 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 		&& serverToken[2] == androidRequest[2]) {
 
 		digitalWrite(dataLed, HIGH);
-
-		Serial.println(" Success!");
+		Serial.println("Token [OK] ");
+		Serial.println("Success!");
 	}
 
 	else {
 		flashLed(errorLed, 2, 25);
-
 		Serial.println("Error: Incorrect token.");
+
+		return;
 	}
 }
 
@@ -184,6 +207,10 @@ void receiveAuthRequest() {
 
 			// Echo received data
 			printAuthRequestPacket();
+
+			// Store the nonce received from the device
+			nonceDevice[0] = androidRequest[0];
+			nonceDevice[1] = androidRequest[1];
 
 			// Respond to the auth request (encrypted)
 			createAuthResponsePacket();
@@ -318,8 +345,7 @@ void receiveDeviceToken(uint8_t serverToken[]) {
 		// Token (3)
 		// Device ID (8)
 		// NodeId (2)
-		// Nonce(android) (2)
-		// Nonce(node) (2)
+		// Nonce(android) XOR Nonce(node) (2)
 		// Timestamp (4)
 		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
 			Serial.println("received.");
