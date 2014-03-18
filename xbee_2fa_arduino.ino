@@ -110,32 +110,34 @@ void createAuthResponsePacket() {
 void printTokenPacket() {
 	Serial.print("* Token: ");
 	Serial.print(androidRequest[0], HEX);
-	Serial.println(androidRequest[1], HEX);
+	Serial.print(androidRequest[1], HEX);
+	Serial.println(androidRequest[2], HEX);
 
 	Serial.print("* Device ID: ");
-	for (uint8_t i = 2; i < 10; i++) {
+	for (uint8_t i = 3; i < 11; i++) {
 		Serial.print(androidRequest[i], HEX);
 	}
 	Serial.println();
 
 	Serial.print("* Node ID: ");
-	Serial.print(androidRequest[10], HEX);
-	Serial.println(androidRequest[11], HEX);
+	Serial.print(androidRequest[11], HEX);
+	Serial.println(androidRequest[12], HEX);
 
 	Serial.print("* Nonce XOR: ");
-	Serial.print(androidRequest[12], HEX);
-	Serial.println(androidRequest[13], HEX);
+	Serial.print(androidRequest[13], HEX);
+	Serial.println(androidRequest[14], HEX);
 
 	Serial.print("* Timestamp: ");
-	Serial.print(androidRequest[14], HEX);
 	Serial.print(androidRequest[15], HEX);
 	Serial.print(androidRequest[16], HEX);
-	Serial.println(androidRequest[17], HEX);
+	Serial.print(androidRequest[17], HEX);
+	Serial.println(androidRequest[18], HEX);
 }
 
 // Verifies that the token received matches the one sent by the server
 // and that other packet data is also correct
 void verifyTokenPacket(uint8_t serverToken[]) {
+	Serial.print("Verifying token...");
 	// Check Node ID
 
 	// Check Device ID
@@ -144,21 +146,15 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 
 	// Check token
 	if (serverToken[0] == androidRequest[0]
-		&& serverToken[1] == androidRequest[1]) {
-		flashLed(statusLed, 20, 25);
-		flashLed(errorLed, 20, 25);
+		&& serverToken[1] == androidRequest[1]
+		&& serverToken[2] == androidRequest[2]) {
 
 		digitalWrite(dataLed, HIGH);
 
-		delay(5000);
-
-		digitalWrite(dataLed, LOW);
-
-		Serial.println("Success! Token is correct.");
+		Serial.println(" Success!");
 	}
 
 	else {
-		flashLed(statusLed, 2, 25);
 		flashLed(errorLed, 2, 25);
 
 		Serial.println("Error: Incorrect token.");
@@ -319,7 +315,7 @@ void receiveDeviceToken(uint8_t serverToken[]) {
 
 	if (xbee.getResponse().isAvailable()) {
 		// got something, hopefully the Android response
-		// Token (2)
+		// Token (3)
 		// Device ID (8)
 		// NodeId (2)
 		// Nonce(android) (2)
