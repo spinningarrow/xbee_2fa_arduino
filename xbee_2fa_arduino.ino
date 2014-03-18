@@ -99,6 +99,10 @@ void createAuthResponsePacket() {
 	androidResponse[15] = timeMillis >> 16;
 	androidResponse[16] = timeMillis >> 8;
 	androidResponse[17] = timeMillis;
+
+	// Encrypt the data
+	aes256_encrypt_ecb(&ctxt, androidResponse);
+	aes256_encrypt_ecb(&ctxt, androidResponse + 16);
 }
 
 // Prints the packet data sent by the mobile device that contains the
@@ -179,13 +183,13 @@ void receiveAuthRequest() {
 			}
 
 			// Decrypt the received data
-			// aes256_dec_single(key, androidRequest);
 			aes256_decrypt_ecb(&ctxt, androidRequest);
+			aes256_decrypt_ecb(&ctxt, androidRequest + 16);
 
 			// Echo received data
 			printAuthRequestPacket();
 
-			// Respond to the auth request
+			// Respond to the auth request (encrypted)
 			createAuthResponsePacket();
 
 			// for (uint8_t i = 18; i < sizeof(androidResponse); i++) {
@@ -335,6 +339,7 @@ void receiveDeviceToken(uint8_t serverToken[]) {
 			// Decrypt the received data
 			// aes256_dec_single(key, androidRequest);
 			aes256_decrypt_ecb(&ctxt, androidRequest);
+			aes256_decrypt_ecb(&ctxt, androidRequest + 16);
 
 			// Echo the received data
 			printTokenPacket();
