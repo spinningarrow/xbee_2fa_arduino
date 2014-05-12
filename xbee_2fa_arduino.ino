@@ -293,7 +293,7 @@ void sendAuthResponse() {
 
 void receiveServerToken() {
 	Serial.println("Waiting for server to send 2FA token...");
-	xbee.readPacket(5000);
+	xbee.readPacket(10000);
 
 	if (xbee.getResponse().isAvailable()) {
 		// got something, hopefully a token
