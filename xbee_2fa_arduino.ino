@@ -182,6 +182,9 @@ void verifyTokenPacket(uint8_t serverToken[]) {
 
 		return;
 	}
+
+	// Send cleared to transfer files message to device
+	sendAuthClearedResponse();
 }
 
 void receiveAuthRequest() {
@@ -384,6 +387,50 @@ void receiveDeviceToken(uint8_t serverToken[]) {
 	}
 	else {
 		Serial.println("An unexpected error occurred.");
+	}
+}
+
+void sendAuthClearedResponse() {
+	Serial.print("Sending 'all cleared' to mobile device...");
+	// TODO create response
+    androidResponse[0] = 0x00;
+    androidResponse[1] = 0x00;
+    androidResponse[2] = 0xFF;
+    androidResponse[3] = 0xFF;
+	xbee.send(txAndroidResponse);
+
+	// after sending a tx request, we expect a status response
+	// wait up to 5 seconds for the status response
+	if (xbee.readPacket(5000)) {
+		// got a response!
+
+		// should be a znet tx status
+		if (xbee.getResponse().getApiId() == TX_STATUS_RESPONSE) {
+			xbee.getResponse().getZBTxStatusResponse(txStatus);
+
+			// get the delivery status, the fifth byte
+			if (txStatus.getStatus() == SUCCESS) {
+				// success.  time to celebrate
+				Serial.println("sent.");
+				flashLed(statusLed, 5, 50);
+			}
+			else {
+				// the remote XBee did not receive our packet. is it powered on?
+				Serial.println("Remote XBee did not receive our packet. Is it powered on?");
+			}
+		}
+	}
+	else if (xbee.getResponse().isError()) {
+		//nss.print("Error reading packet.  Error code: ");
+		//nss.println(xbee.getResponse().getErrorCode());
+		// or flash error led
+		flashLed(errorLed, 5, 500);
+		Serial.println("Error reading packet.");
+	}
+	else {
+		// local XBee did not provide a timely TX Status Response.  Radio is not configured properly or connected
+		flashLed(errorLed, 2, 50);
+		Serial.println("Error. Radio is not configured properly or not connected.");
 	}
 }
 
