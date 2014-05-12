@@ -436,59 +436,61 @@ void sendAuthClearedResponse() {
 }
 
 void receiveFileData() {
-	Serial.print("Waiting for mobile device to send a file...");
-	flashLed(statusLed, 5, 25);
-	// }
+	while (true) {
+		Serial.print("Waiting for mobile device to send a file...");
+		flashLed(statusLed, 5, 25);
+		// }
 
-	// Now wait for Android to send data
-	xbee.readPacket(60000);
+		// Now wait for Android to send data
+		xbee.readPacket(60000);
 
-	if (xbee.getResponse().isAvailable()) {
-		// got something, hopefully the Android response
-		// Token (3)
-		// Device ID (8)
-		// NodeId (2)
-		// Nonce(android) XOR Nonce(node) (2)
-		// Timestamp (4)
-		if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
-			Serial.println("received.");
+		if (xbee.getResponse().isAvailable()) {
+			// got something, hopefully the Android response
+			// Token (3)
+			// Device ID (8)
+			// NodeId (2)
+			// Nonce(android) XOR Nonce(node) (2)
+			// Timestamp (4)
+			if (xbee.getResponse().getApiId() == RX_16_RESPONSE) {
+				Serial.println("received.");
 
-			// got a rx packet
-			xbee.getResponse().getRx16Response(rx16);
-			uint8_t dataLength = rx16.getDataLength();
+				// got a rx packet
+				xbee.getResponse().getRx16Response(rx16);
+				uint8_t dataLength = rx16.getDataLength();
 
-			for (uint8_t i = 0; i < dataLength; i++) {
-				androidRequest[i] = rx16.getData(i);
-                                char buf[12];
-				Serial.print(char(androidRequest[i]));
+				for (uint8_t i = 0; i < dataLength; i++) {
+					androidRequest[i] = rx16.getData(i);
+	                                char buf[12];
+					Serial.print(char(androidRequest[i]));
+				}
+
+				// Decrypt the received data
+				// aes256_dec_single(key, androidRequest);
+				// aes256_decrypt_ecb(&ctxt, androidRequest);
+				// aes256_decrypt_ecb(&ctxt, androidRequest + 16);
+
+				// Echo the received data
+				// printTokenPacket();
+
+				// Verify token
+				// verifyTokenPacket(serverToken);
 			}
-
-			// Decrypt the received data
-			// aes256_dec_single(key, androidRequest);
-			// aes256_decrypt_ecb(&ctxt, androidRequest);
-			// aes256_decrypt_ecb(&ctxt, androidRequest + 16);
-
-			// Echo the received data
-			// printTokenPacket();
-
-			// Verify token
-			// verifyTokenPacket(serverToken);
+			else {
+				// not something we were expecting
+				flashLed(errorLed, 2, 25);
+				Serial.println("Error: Not an RX_16_RESPONSE");
+			}
+		}
+		else if (xbee.getResponse().isError()) {
+			//nss.print("Error reading packet.  Error code: ");
+			//nss.println(xbee.getResponse().getErrorCode());
+			// or flash error led
+			flashLed(errorLed, 5, 25);
+			Serial.println("Error reading packet.");
 		}
 		else {
-			// not something we were expecting
-			flashLed(errorLed, 2, 25);
-			Serial.println("Error: Not an RX_16_RESPONSE");
+			Serial.println("An unexpected error occurred.");
 		}
-	}
-	else if (xbee.getResponse().isError()) {
-		//nss.print("Error reading packet.  Error code: ");
-		//nss.println(xbee.getResponse().getErrorCode());
-		// or flash error led
-		flashLed(errorLed, 5, 25);
-		Serial.println("Error reading packet.");
-	}
-	else {
-		Serial.println("An unexpected error occurred.");
 	}
 }
 
